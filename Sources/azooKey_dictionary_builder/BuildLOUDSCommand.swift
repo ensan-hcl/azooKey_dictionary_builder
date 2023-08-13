@@ -24,6 +24,9 @@ extension azooKey_dictionary_builder {
         @Flag(name: [.customShort("c"), .customLong("clean")], help: "Cleans target directory.")
         var cleanTargetDirectory = false
 
+        @Flag(name: [.customShort("v"), .customLong("verbose")], help: "Verbose logs.")
+        var verbose = false
+
         mutating func run() throws {
             let sourceDirectoryURL = URL(fileURLWithPath: sourceDirectory, isDirectory: true)
             let targetDirectoryURL = URL(fileURLWithPath: targetDirectory, isDirectory: true)
@@ -40,7 +43,7 @@ extension azooKey_dictionary_builder {
             print("Generates LOUDS files into \(targetDirectoryURL.path)...")
             for target in Self.targetChars {
                 do {
-                    try loudsBuilder.process(target)
+                    try loudsBuilder.process(target, verbose: verbose)
                 } catch {
                     print("Error on \(target)")
                     throw error
@@ -67,6 +70,11 @@ extension LOUDSBuilder {
                 (Character($0.element), UInt8($0.offset))
             }
     )
+    
+    /// これらの文字を含む単語はスキップする
+    static let skipCharacters: Set<Character> = [
+        "ヸ"
+    ]
 
     static func getID(from char: Character) -> UInt8 {
         if let id = Self.char2UInt8[char] {
@@ -191,7 +199,10 @@ struct LOUDSBuilder {
         return binary
     }
 
-    func process(_ identifier: String) throws {
+    func process(_ identifier: String, verbose: Bool) throws {
+        if verbose {
+            print("Processing \(identifier)...")
+        }
         let csvLines: [String]
         let trieroot = TrieNode<Character, Int>()
         let sourceURL = self.sourceDirectory.appendingPathComponent("\(identifier).tsv", isDirectory: false)
@@ -204,8 +215,11 @@ struct LOUDSBuilder {
             csvLines = tsvString.components(separatedBy: .newlines)
             let csvData = csvLines.map {$0.utf8.split(separator: UInt8(ascii: "\t"), omittingEmptySubsequences: false)}
             csvData.indices.forEach {index in
-                let ruby = csvData[index][0]
-                trieroot.insertValue(for: String(ruby)!, value: index)
+                let ruby = String(csvData[index][0])!
+                if !Self.skipCharacters.intersection(ruby).isEmpty {
+                    return
+                }
+                trieroot.insertValue(for: ruby, value: index)
             }
         } catch let error as NSError {
             if error.code == 260 {
