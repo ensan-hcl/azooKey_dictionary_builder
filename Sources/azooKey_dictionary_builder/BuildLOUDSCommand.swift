@@ -73,7 +73,7 @@ extension LOUDSBuilder {
     
     /// これらの文字を含む単語はスキップする
     static let skipCharacters: Set<Character> = [
-        "ヸ"
+        "ヸ", "!"
     ]
 
     static func getID(from char: Character) -> UInt8 {
