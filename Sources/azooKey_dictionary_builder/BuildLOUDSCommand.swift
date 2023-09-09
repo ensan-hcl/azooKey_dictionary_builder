@@ -80,7 +80,7 @@ extension LOUDSBuilder {
         if let id = Self.char2UInt8[char] {
             return id
         }
-        fatalError("Unknown target character \(char) \(char.unicodeScalars.map{$0.value})")
+        fatalError("Unknown target character \(char) \(char.unicodeScalars.map{$0.value}). Consider adding this character to `skipCharacters`")
     }
 
     static func writeCharID(targetDirectory: URL) throws {
