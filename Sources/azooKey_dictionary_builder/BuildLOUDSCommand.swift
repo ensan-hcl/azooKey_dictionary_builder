@@ -5,8 +5,8 @@ extension azooKey_dictionary_builder {
     struct BuildLOUDSCommand: ParsableCommand {
         static var configuration = CommandConfiguration(commandName: "louds", abstract: "Build louds dictionary files from source files.")
 
-        static let targetChars = [
-            "　", "￣", "‐", "―", "〜", "・", "、", "…", "‥", "。", "‘", "’", "“", "”", "〈", "〉", "《", "》", "「", "」", "『", "』", "【", "】", "〔", "〕", "‖", "*", "′", "〃", "※", "´", "¨", "゛", "゜", "←", "→", "↑", "↓", "─", "■", "□", "▲", "△", "▼", "▽", "◆", "◇", "○", "◎", "●", "★", "☆", "々", "ゝ", "ヽ", "ゞ", "ヾ", "ー", "〇", "ァ", "ア", "ィ", "イ", "ゥ", "ウ", "ヴ", "ェ", "エ", "ォ", "オ", "ヵ", "カ", "ガ", "キ", "ギ", "ク", "グ", "ヶ", "ケ", "ゲ", "コ", "ゴ", "サ", "ザ", "シ", "ジ", "〆", "ス", "ズ", "セ", "ゼ", "ソ", "ゾ", "タ", "ダ", "チ", "ヂ", "ッ", "ツ", "ヅ", "テ", "デ", "ト", "ド", "ナ", "ニ", "ヌ", "ネ", "ノ", "ハ", "バ", "パ", "ヒ", "ビ", "ピ", "フ", "ブ", "プ", "ヘ", "ベ", "ペ", "ホ", "ボ", "ポ", "マ", "ミ", "ム", "メ", "モ", "ヤ", "ユ", "ョ", "ヨ", "ラ", "リ", "ル", "レ", "ロ", "ヮ", "ワ", "ヰ", "ヱ", "ヲ", "ン", "仝", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "！", "？", "(", ")", "#", "%", "&", "^", "_", "'", "\"", "=", "ㇻ"
+        private static let targetChars = [
+            "￣", "‐", "―", "〜", "・", "、", "…", "‥", "。", "‘", "’", "“", "”", "〈", "〉", "《", "》", "「", "」", "『", "』", "【", "】", "〔", "〕", "‖", "*", "′", "〃", "※", "´", "¨", "゛", "゜", "←", "→", "↑", "↓", "─", "■", "□", "▲", "△", "▼", "▽", "◆", "◇", "○", "◎", "●", "★", "☆", "々", "ゝ", "ヽ", "ゞ", "ヾ", "ー", "〇", "ァ", "ア", "ィ", "イ", "ゥ", "ウ", "ヴ", "ェ", "エ", "ォ", "オ", "ヵ", "カ", "ガ", "キ", "ギ", "ク", "グ", "ヶ", "ケ", "ゲ", "コ", "ゴ", "サ", "ザ", "シ", "ジ", "〆", "ス", "ズ", "セ", "ゼ", "ソ", "ゾ", "タ", "ダ", "チ", "ヂ", "ッ", "ツ", "ヅ", "テ", "デ", "ト", "ド", "ナ", "ニ", "ヌ", "ネ", "ノ", "ハ", "バ", "パ", "ヒ", "ビ", "ピ", "フ", "ブ", "プ", "ヘ", "ベ", "ペ", "ホ", "ボ", "ポ", "マ", "ミ", "ム", "メ", "モ", "ヤ", "ユ", "ョ", "ヨ", "ラ", "リ", "ル", "レ", "ロ", "ヮ", "ワ", "ヰ", "ヱ", "ヲ", "ン", "仝", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "！", "？", "(", ")", "#", "%", "&", "^", "_", "'", "\"", "=", "ㇻ"
         ]
 
         @Argument(help: "Source directory that contains tsv formatted file of the dictionary.")
@@ -73,7 +73,7 @@ extension LOUDSBuilder {
     
     /// これらの文字を含む単語はスキップする
     static let skipCharacters: Set<Character> = [
-        "ヷ", "ヸ", "!"
+        "ヷ", "ヸ", "!", "　", "\0"
     ]
 
     static func getID(from char: Character) -> UInt8 {
@@ -216,7 +216,7 @@ struct LOUDSBuilder {
             let csvData = csvLines.map {$0.utf8.split(separator: UInt8(ascii: "\t"), omittingEmptySubsequences: false)}
             csvData.indices.forEach {index in
                 let ruby = String(csvData[index][0])!
-                if !Self.skipCharacters.intersection(ruby).isEmpty {
+                guard Self.skipCharacters.intersection(ruby).isEmpty else {
                     return
                 }
                 trieroot.insertValue(for: ruby, value: index)
@@ -249,6 +249,10 @@ struct LOUDSBuilder {
                 currentID += 1
             }
             currentNodes = currentNodes.flatMap {$0.1.children.map {($0.key, $0.value)}}
+        }
+        if bits.count == 2 {
+            print("No data found for \(identifier)")
+            return
         }
 
         let bytes = BoolToUInt64(bits)
