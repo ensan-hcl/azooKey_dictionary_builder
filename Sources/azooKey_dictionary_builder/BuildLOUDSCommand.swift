@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import OrderedCollections
 
 extension azooKey_dictionary_builder {
     struct BuildLOUDSCommand: ParsableCommand {
@@ -61,7 +62,6 @@ extension azooKey_dictionary_builder {
     }
 }
 
-
 extension LOUDSBuilder {
     static let char2UInt8 = [Character: UInt8](
         uniqueKeysWithValues: ["\0", "　", "￣", "‐", "―", "〜", "・", "、", "…", "‥", "。", "‘", "’", "“", "”", "〈", "〉", "《", "》", "「", "」", "『", "』", "【", "】", "〔", "〕", "‖", "*", "′", "〃", "※", "´", "¨", "゛", "゜", "←", "→", "↑", "↓", "─", "■", "□", "▲", "△", "▼", "▽", "◆", "◇", "○", "◎", "●", "★", "☆", "々", "ゝ", "ヽ", "ゞ", "ヾ", "ー", "〇", "Q", "ァ", "ア", "ィ", "イ", "ゥ", "ウ", "ヴ", "ェ", "エ", "ォ", "オ", "ヵ", "カ", "ガ", "キ", "ギ", "ク", "グ", "ヶ", "ケ", "ゲ", "コ", "ゴ", "サ", "ザ", "シ", "ジ", "〆", "ス", "ズ", "セ", "ゼ", "ソ", "ゾ", "タ", "ダ", "チ", "ヂ", "ッ", "ツ", "ヅ", "テ", "デ", "ト", "ド", "ナ", "ニ", "ヌ", "ネ", "ノ", "ハ", "バ", "パ", "ヒ", "ビ", "ピ", "フ", "ブ", "プ", "ヘ", "ベ", "ペ", "ホ", "ボ", "ポ", "マ", "ミ", "ム", "メ", "モ", "ャ", "ヤ", "ュ", "ユ", "ョ", "ヨ", "ラ", "リ", "ル", "レ", "ロ", "ヮ", "ワ", "ヰ", "ヱ", "ヲ", "ン", "仝", "&", "A", "！", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "？", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "^", "_", "=", "ㇻ", "(", ")", "#", "%", "'", "\"", "+", "-"]
@@ -70,7 +70,7 @@ extension LOUDSBuilder {
                 (Character($0.element), UInt8($0.offset))
             }
     )
-    
+
     /// これらの文字を含む単語はスキップする
     static let skipCharacters: Set<Character> = [
         "ヷ", "ヸ", "!", "　", "\0"
@@ -80,7 +80,7 @@ extension LOUDSBuilder {
         if let id = Self.char2UInt8[char] {
             return id
         }
-        fatalError("Unknown target character \(char) \(char.unicodeScalars.map{$0.value}). Consider adding this character to `skipCharacters`")
+        fatalError("Unknown target character \(char) \(char.unicodeScalars.map {$0.value}). Consider adding this character to `skipCharacters`")
     }
 
     static func writeCharID(targetDirectory: URL) throws {
@@ -199,16 +199,32 @@ struct LOUDSBuilder {
         return binary
     }
 
-    func process(_ identifier: String, verbose: Bool) throws {
+    func process(_ inputIdentifier: String, verbose: Bool) throws {
         if verbose {
-            print("Processing \(identifier)...")
+            print("Processing \(inputIdentifier)...")
         }
         let csvLines: [String]
         let trieroot = TrieNode<Character, Int>()
-        let sourceURL = self.sourceDirectory.appendingPathComponent("\(identifier).tsv", isDirectory: false)
-        let loudsURL = self.targetDirectory.appendingPathComponent("\(identifier).louds", isDirectory: false)
-        let loudscharsURL = self.targetDirectory.appendingPathComponent("\(identifier).loudschars2", isDirectory: false)
-        let loudstxtURL: (String) -> URL = {self.targetDirectory.appendingPathComponent("\(identifier)\($0).loudstxt3", isDirectory: false)}
+        // Warning: この行に変更を加える場合、合わせてAzooKeyKanaKanjiConverterにも変更を加えること。
+        let outputIdentifier = [
+            #"\n"#: "[0A]",
+            #" "#: "[20]",
+            #"""#: "[22]",
+            #"'"#: "[27]",
+            #"*"#: "[2A]",
+            #"+"#: "[2B]",
+            #"."#: "[2E]",
+            #"/"#: "[2F]",
+            #":"#: "[3A]",
+            #"<"#: "[3C]",
+            #">"#: "[3E]",
+            #"\"#: "[5C]",
+            #"|"#: "[7C]"
+        ][inputIdentifier, default: inputIdentifier]
+        let sourceURL = self.sourceDirectory.appendingPathComponent("\(inputIdentifier).tsv", isDirectory: false)
+        let loudsURL = self.targetDirectory.appendingPathComponent("\(outputIdentifier).louds", isDirectory: false)
+        let loudscharsURL = self.targetDirectory.appendingPathComponent("\(outputIdentifier).loudschars2", isDirectory: false)
+        let loudstxtURL: (String) -> URL = {self.targetDirectory.appendingPathComponent("\(outputIdentifier)\($0).loudstxt3", isDirectory: false)}
 
         do {
             let tsvString = try String(contentsOf: sourceURL, encoding: .utf8)
@@ -223,7 +239,7 @@ struct LOUDSBuilder {
             }
         } catch let error as NSError {
             if error.code == 260 {
-                print("ファイル「\(identifier).tsv」が存在しないので、スキップします")
+                print("ファイル「\(inputIdentifier).tsv」が存在しないので、スキップします")
                 return
             } else {
                 throw error
@@ -251,7 +267,7 @@ struct LOUDSBuilder {
             currentNodes = currentNodes.flatMap {$0.1.children.map {($0.key, $0.value)}}
         }
         if bits.count == 2 {
-            print("No data found for \(identifier)")
+            print("No data found for \(inputIdentifier)")
             return
         }
 
@@ -286,12 +302,12 @@ struct LOUDSBuilder {
 }
 
 class TrieNode<Key: Hashable, Value: Hashable> {
-    var value: Set<Value>
-    var children: [Key: TrieNode<Key, Value>]
+    var value: OrderedSet<Value>
+    var children: OrderedDictionary<Key, TrieNode<Key, Value>>
     var id = -1
 
-    init(value: [Value] = [], children: [Key: TrieNode<Key, Value>] = [:]) {
-        self.value = Set(value)
+    init(value: [Value] = [], children: OrderedDictionary<Key, TrieNode<Key, Value>> = [:]) {
+        self.value = OrderedSet(value)
         self.children = children
     }
 
@@ -306,7 +322,7 @@ class TrieNode<Key: Hashable, Value: Hashable> {
                 current = newNode
             }
         }
-        current.value.update(with: value)
+        current.value.append(value)
     }
 }
 
